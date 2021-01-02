@@ -36,6 +36,7 @@ from bpy.types import (Panel,
 import os
 from bpy import context
 import time
+from math import sqrt
 
 
 # ------------------------------------------------------------------------
@@ -208,6 +209,23 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
 
         #'''
+            if bstool.bs_remesh and bstool.bs_remeshdelay !=0 and (it%bstool.bs_remeshdelay) == 0:
+                bpy.ops.object.modifier_add(type='REMESH')
+                bpy.context.object.modifiers["Remesh"].mode='VOXEL'
+                bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
+
+                if bpy.app.version[1] > 89:
+                    bpy.ops.object.modifier_apply(modifier="Remesh")
+                else:    
+                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
+
+                bpy.ops.object.modifier_add(type='TRIANGULATE')
+                if bpy.app.version[1] > 89:
+                    bpy.ops.object.modifier_apply(modifier="Triangulate")
+                else:    
+                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
+                unmovable.clear()
+
 
         if bstool.bs_smooth:
             bpy.ops.object.modifier_add(type='SMOOTH')
@@ -217,6 +235,22 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
                 bpy.ops.object.modifier_apply(modifier="Smooth")
             else:    
                 bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
+
+        if bstool.bs_remesh:
+            bpy.ops.object.modifier_add(type='REMESH')
+            bpy.context.object.modifiers["Remesh"].mode='VOXEL'
+            bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
+
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Remesh")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
+
+            bpy.ops.object.modifier_add(type='TRIANGULATE')
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Triangulate")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
 
         printconsole ("Shell created !")    
         printconsole((time.time() - start_time))
@@ -372,9 +406,11 @@ class OBJECT_PT_BlendShellPanel(Panel):
         layout.prop(bstool, "bs_thickness")        
         layout.prop(bstool, "bs_dv")
         layout.prop(bstool, "bs_rdelay")
+        layout.prop(bstool, "bs_remeshdelay")
         layout.prop(bstool, "bs_pszmax")
         layout.prop(bstool, "bs_itrs")
         layout.prop(bstool, "bs_smooth")
+        layout.prop(bstool, "bs_remesh")
         layout.operator("bscreate.shell", text = "Create Shell", icon='TRIA_RIGHT')        
         row = layout.row(align=True)
 
@@ -490,6 +526,13 @@ class CCProperties(PropertyGroup):
         min=1,
         max=100        
       )
+    bs_remeshdelay: IntProperty(
+        name = "Remesh Delay",
+        description = "remesh every nth itteration",
+        default = 0,
+        min=0,
+        max=100        
+      )
     bs_pszmax: FloatProperty(
         name = "Max Triangle Area",
         description = "Maximum triangle area after which it gets subdivided",
@@ -547,6 +590,11 @@ class CCProperties(PropertyGroup):
         name = "Smooth",
         description = "smooth after hollowing",
         default = True
+    )
+    bs_remesh: BoolProperty(
+        name = "Remesh",
+        description = "remesh after hollowing",
+        default = False
     )
 #    bs_units: FloatProperty(
 #        name = "Unit Scale",
