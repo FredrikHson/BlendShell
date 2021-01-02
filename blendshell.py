@@ -79,6 +79,85 @@ def On_Seedsz_Changed(self, context):
     Create_Seed(bstool.bs_seeddiv, bstool.bs_seedsz)
 
 
+class CSH_OT_CCleanup(bpy.types.Operator):
+    bl_idname = "bscleanup.shell"
+    bl_label = "Cleanup"
+    bl_description = "uses shrinkwrapping with offset to ensure thickness"
+    
+    def execute(self, context):
+        #########   Remove ######
+        #bpy.ops.object.delete() #
+        #########################
+        scene = context.scene
+        bstool = scene.bs_tool
+        
+        thickness = bstool.bs_thickness
+
+        seed = bpy.data.objects.get("Seed.001")
+        if seed == None:
+            ShowMessageBox("Please create a seed, position it inside your model and try again") 
+            return{'FINISHED'}
+
+        target = bstool.bs_target
+        #target = bpy.context.object
+
+        if target == None or target == seed:
+            ShowMessageBox("Please pick your model from the Target Object dropdown box and try again") 
+            return{'FINISHED'}
+
+        if bstool.bs_smooth:
+            bpy.ops.object.modifier_add(type='SMOOTH')
+            bpy.context.object.modifiers["Smooth"].iterations = 4
+            
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Smooth")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
+        bpy.ops.object.modifier_add(type='SHRINKWRAP')
+        bpy.context.object.modifiers["Shrinkwrap"].offset=thickness
+        bpy.context.object.modifiers["Shrinkwrap"].wrap_mode="INSIDE"
+        bpy.context.object.modifiers["Shrinkwrap"].target=target
+
+        if bpy.app.version[1] > 89:
+            bpy.ops.object.modifier_apply(modifier="Shrinkwrap")
+        else:    
+            bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Shrinkwrap")
+
+        if bstool.bs_remesh!=0:
+            bpy.ops.object.modifier_add(type='REMESH')
+            bpy.context.object.modifiers["Remesh"].mode='VOXEL'
+            bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
+
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Remesh")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
+
+            bpy.ops.object.modifier_add(type='TRIANGULATE')
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Triangulate")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
+
+        if bstool.bs_smooth:
+            bpy.ops.object.modifier_add(type='SMOOTH')
+            bpy.context.object.modifiers["Smooth"].iterations = 4
+            
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Smooth")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
+        bpy.ops.object.modifier_add(type='SHRINKWRAP')
+        bpy.context.object.modifiers["Shrinkwrap"].offset=thickness
+        bpy.context.object.modifiers["Shrinkwrap"].wrap_mode="INSIDE"
+        bpy.context.object.modifiers["Shrinkwrap"].target=target
+
+        if bpy.app.version[1] > 89:
+            bpy.ops.object.modifier_apply(modifier="Shrinkwrap")
+        else:    
+            bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Shrinkwrap")
+        return{'FINISHED'} 
+
 class CSH_OT_CCreateShell(bpy.types.Operator):
     bl_idname = "bscreate.shell"
     bl_label = "Create Shell"
@@ -158,6 +237,8 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
 
         for it in range(0,itrs):
             #redraw view
+            if len(unmovable) == len(seed.data.vertices):
+                break
             redrw = redrw + 1
             if redrw > rdelay:
                 bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
@@ -209,7 +290,7 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')
 
         #'''
-            if bstool.bs_remesh and bstool.bs_remeshdelay !=0 and (it%bstool.bs_remeshdelay) == 0:
+            if bstool.bs_remesh !=0 and (it%bstool.bs_remesh) == 0 and it != itrs and it != 0:
                 bpy.ops.object.modifier_add(type='REMESH')
                 bpy.context.object.modifiers["Remesh"].mode='VOXEL'
                 bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
@@ -235,22 +316,6 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
                 bpy.ops.object.modifier_apply(modifier="Smooth")
             else:    
                 bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
-
-        if bstool.bs_remesh:
-            bpy.ops.object.modifier_add(type='REMESH')
-            bpy.context.object.modifiers["Remesh"].mode='VOXEL'
-            bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
-
-            if bpy.app.version[1] > 89:
-                bpy.ops.object.modifier_apply(modifier="Remesh")
-            else:    
-                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
-
-            bpy.ops.object.modifier_add(type='TRIANGULATE')
-            if bpy.app.version[1] > 89:
-                bpy.ops.object.modifier_apply(modifier="Triangulate")
-            else:    
-                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
 
         printconsole ("Shell created !")    
         printconsole((time.time() - start_time))
@@ -406,12 +471,12 @@ class OBJECT_PT_BlendShellPanel(Panel):
         layout.prop(bstool, "bs_thickness")        
         layout.prop(bstool, "bs_dv")
         layout.prop(bstool, "bs_rdelay")
-        layout.prop(bstool, "bs_remeshdelay")
+        layout.prop(bstool, "bs_remesh")
         layout.prop(bstool, "bs_pszmax")
         layout.prop(bstool, "bs_itrs")
         layout.prop(bstool, "bs_smooth")
-        layout.prop(bstool, "bs_remesh")
         layout.operator("bscreate.shell", text = "Create Shell", icon='TRIA_RIGHT')        
+        layout.operator("bscleanup.shell", text = "Cleanup", icon='TRIA_RIGHT')        
         row = layout.row(align=True)
 
 class OBJECT_PT_BlendShellPostPanel(bpy.types.Panel):
@@ -526,8 +591,8 @@ class CCProperties(PropertyGroup):
         min=1,
         max=100        
       )
-    bs_remeshdelay: IntProperty(
-        name = "Remesh Delay",
+    bs_remesh: IntProperty(
+        name = "Remesh",
         description = "remesh every nth itteration",
         default = 0,
         min=0,
@@ -591,11 +656,6 @@ class CCProperties(PropertyGroup):
         description = "smooth after hollowing",
         default = True
     )
-    bs_remesh: BoolProperty(
-        name = "Remesh",
-        description = "remesh after hollowing",
-        default = False
-    )
 #    bs_units: FloatProperty(
 #        name = "Unit Scale",
 #        description = "Current units scale.\nCheck the Scene Properties tab to set the units",
@@ -610,6 +670,7 @@ class CCProperties(PropertyGroup):
 classes = (
     CCS_OT_CCreateSeed,
     CSH_OT_CCreateShell,
+    CSH_OT_CCleanup,
     CFA_OT_CFlipAttach,
     CCD_OT_CCreateDrills,
     CDH_OT_CDrillHoles,
