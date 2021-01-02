@@ -209,13 +209,14 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
 
         #'''
 
-        bpy.ops.object.modifier_add(type='SMOOTH')
-        bpy.context.object.modifiers["Smooth"].iterations = 4
-        
-        if bpy.app.version[1] > 89:
-            bpy.ops.object.modifier_apply(modifier="Smooth")
-        else:    
-            bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
+        if bstool.bs_smooth:
+            bpy.ops.object.modifier_add(type='SMOOTH')
+            bpy.context.object.modifiers["Smooth"].iterations = 4
+            
+            if bpy.app.version[1] > 89:
+                bpy.ops.object.modifier_apply(modifier="Smooth")
+            else:    
+                bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Smooth")
 
         printconsole ("Shell created !")    
         printconsole((time.time() - start_time))
@@ -373,6 +374,7 @@ class OBJECT_PT_BlendShellPanel(Panel):
         layout.prop(bstool, "bs_rdelay")
         layout.prop(bstool, "bs_pszmax")
         layout.prop(bstool, "bs_itrs")
+        layout.prop(bstool, "bs_smooth")
         layout.operator("bscreate.shell", text = "Create Shell", icon='TRIA_RIGHT')        
         row = layout.row(align=True)
 
@@ -539,6 +541,11 @@ class CCProperties(PropertyGroup):
     bs_deldrills: BoolProperty(
         name = "Delete Drills",
         description = "Delete the drills after making holes",
+        default = True
+    )
+    bs_smooth: BoolProperty(
+        name = "Smooth",
+        description = "smooth after hollowing",
         default = True
     )
 #    bs_units: FloatProperty(
