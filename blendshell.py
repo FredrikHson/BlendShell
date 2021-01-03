@@ -247,8 +247,8 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
 
         for it in range(0,itrs):
             #redraw view
-            if len(unmovable) == len(seed.data.vertices):
-                break
+            # if len(unmovable) == len(seed.data.vertices):
+                # break
             redrw = redrw + 1
             if redrw > rdelay:
                 bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
@@ -265,57 +265,106 @@ class CSH_OT_CCreateShell(bpy.types.Operator):
                     return{'FINISHED'}
                 printconsole(svol)
 
-                    
-            #expand seed
-            for v in seed.data.vertices:
-                if (v.index in unmovable) == False:
-                    (hit, loc, norm, face_index) = target.closest_point_on_mesh(v.co)
-                    if hit:
-                        dist = (loc - v.co).length
-                        if dist > thickness:
-                            v.co += dv * v.normal
-                        else:
-                            unmovable.append(v.index)
+            if bstool.bs_usemods:
+                bpy.ops.object.modifier_add(type='DISPLACE')
+                bpy.context.object.modifiers["Displace"].strength=dv;
+                bpy.context.object.modifiers["Displace"].mid_level=0;
+                if bpy.app.version[1] > 89:
+                    bpy.ops.object.modifier_apply(modifier="Displace")
+                else:    
+                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Displace")
+
+                bpy.ops.object.modifier_add(type='SHRINKWRAP')
+                bpy.context.object.modifiers["Shrinkwrap"].offset=thickness
+                bpy.context.object.modifiers["Shrinkwrap"].wrap_mode="INSIDE"
+                bpy.context.object.modifiers["Shrinkwrap"].wrap_method="PROJECT"
+                bpy.context.object.modifiers["Shrinkwrap"].project_limit=thickness*2.1
+                bpy.context.object.modifiers["Shrinkwrap"].use_negative_direction=True
+                bpy.context.object.modifiers["Shrinkwrap"].target=target
+
+                if bpy.app.version[1] > 89:
+                    bpy.ops.object.modifier_apply(modifier="Shrinkwrap")
+                else:    
+                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Shrinkwrap")
+
+                if bstool.bs_remesh !=0 and (it%bstool.bs_remesh) == 0:
+                    bpy.ops.object.modifier_add(type='REMESH')
+                    bpy.context.object.modifiers["Remesh"].mode='VOXEL'
+                    bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
+
+                    if bpy.app.version[1] > 89:
+                        bpy.ops.object.modifier_apply(modifier="Remesh")
+                    else:    
+                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
+            else:
+                #expand seed
+                for v in seed.data.vertices:
+                    if (v.index in unmovable) == False:
+                        (hit, loc, norm, face_index) = target.closest_point_on_mesh(v.co)
+                        if hit:
+                            dist = (loc - v.co).length
+                            if dist > thickness:
+                                v.co += dv * v.normal
+                            else:
+                                unmovable.append(v.index)
 
 
-        #'''              
-            #divide large polys
-            bpy.ops.object.mode_set(mode='EDIT')
+                #'''                  
+                #divide large polys
+                bpy.ops.object.mode_set(mode='EDIT')
 
-            bm = bmesh.from_edit_mesh(seed.data)
-            bm.verts.ensure_lookup_table()
-            bm.edges.ensure_lookup_table()
-            bm.faces.ensure_lookup_table()
+                bm = bmesh.from_edit_mesh(seed.data)
+                bm.verts.ensure_lookup_table()
+                bm.edges.ensure_lookup_table()
+                bm.faces.ensure_lookup_table()
 
-            flist = []
-            for p in bm.faces: 
-                p.select = True
-                if p.calc_area() > pszmax:
-                    #p.select = True
-                    flist.append(p)    
+                flist = []
+                for p in bm.faces: 
+                    p.select = True
+                    if p.calc_area() > pszmax:
+                        #p.select = True
+                        flist.append(p)    
 
-            bmesh.ops.poke(bm, faces = flist)
-            bmesh.update_edit_mesh(seed.data)
-            bpy.ops.mesh.beautify_fill()
-            bpy.ops.object.mode_set(mode='OBJECT')
+                bmesh.ops.poke(bm, faces = flist)
+                bmesh.update_edit_mesh(seed.data)
+                bpy.ops.mesh.beautify_fill()
+                bpy.ops.object.mode_set(mode='OBJECT')
+                #'''
+                if bstool.bs_remesh !=0 and (it%bstool.bs_remesh) == 0 and it != itrs and it != 0:
+                    bpy.ops.object.modifier_add(type='REMESH')
+                    bpy.context.object.modifiers["Remesh"].mode='VOXEL'
+                    bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
+
+                    if bpy.app.version[1] > 89:
+                        bpy.ops.object.modifier_apply(modifier="Remesh")
+                    else:    
+                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
+
+                    bpy.ops.object.modifier_add(type='TRIANGULATE')
+                    if bpy.app.version[1] > 89:
+                        bpy.ops.object.modifier_apply(modifier="Triangulate")
+                    else:    
+                        bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
+                    unmovable.clear()
+
 
         #'''
-            if bstool.bs_remesh !=0 and (it%bstool.bs_remesh) == 0 and it != itrs and it != 0:
-                bpy.ops.object.modifier_add(type='REMESH')
-                bpy.context.object.modifiers["Remesh"].mode='VOXEL'
-                bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
+            # if bstool.bs_remesh !=0 and (it%bstool.bs_remesh) == 0 and it != itrs and it != 0:
+                # bpy.ops.object.modifier_add(type='REMESH')
+                # bpy.context.object.modifiers["Remesh"].mode='VOXEL'
+                # bpy.context.object.modifiers["Remesh"].voxel_size=sqrt(bstool.bs_pszmax)
 
-                if bpy.app.version[1] > 89:
-                    bpy.ops.object.modifier_apply(modifier="Remesh")
-                else:    
-                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
+                # if bpy.app.version[1] > 89:
+                    # bpy.ops.object.modifier_apply(modifier="Remesh")
+                # else:    
+                    # bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Remesh")
 
-                bpy.ops.object.modifier_add(type='TRIANGULATE')
-                if bpy.app.version[1] > 89:
-                    bpy.ops.object.modifier_apply(modifier="Triangulate")
-                else:    
-                    bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
-                unmovable.clear()
+                # bpy.ops.object.modifier_add(type='TRIANGULATE')
+                # if bpy.app.version[1] > 89:
+                    # bpy.ops.object.modifier_apply(modifier="Triangulate")
+                # else:    
+                    # bpy.ops.object.modifier_apply(apply_as='DATA', modifier="Triangulate")
+                # unmovable.clear()
 
 
         if bstool.bs_smooth:
@@ -485,6 +534,7 @@ class OBJECT_PT_BlendShellPanel(Panel):
         layout.prop(bstool, "bs_pszmax")
         layout.prop(bstool, "bs_itrs")
         layout.prop(bstool, "bs_smooth")
+        layout.prop(bstool, "bs_usemods")
         layout.operator("bscreate.shell", text = "Create Shell", icon='TRIA_RIGHT')        
         layout.operator("bscleanup.shell", text = "Cleanup", icon='TRIA_RIGHT')        
         row = layout.row(align=True)
@@ -665,6 +715,11 @@ class CCProperties(PropertyGroup):
         name = "Smooth",
         description = "smooth after hollowing",
         default = True
+    )
+    bs_usemods: BoolProperty(
+        name = "Use Modifiers",
+        description = "alternative algorith using modifiers",
+        default = False
     )
 #    bs_units: FloatProperty(
 #        name = "Unit Scale",
