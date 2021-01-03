@@ -82,7 +82,7 @@ def On_Seedsz_Changed(self, context):
 class CSH_OT_CCleanup(bpy.types.Operator):
     bl_idname = "bscleanup.shell"
     bl_label = "Cleanup"
-    bl_description = "uses shrinkwrapping with offset to ensure thickness"
+    bl_description = "uses shrinkwrapping with offset to ensure thickness\nwill use the smoothing and remesh options if set"
     
     def execute(self, context):
         #########   Remove ######
@@ -104,6 +104,16 @@ class CSH_OT_CCleanup(bpy.types.Operator):
         if target == None or target == seed:
             ShowMessageBox("Please pick your model from the Target Object dropdown box and try again") 
             return{'FINISHED'}
+
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = target
+        target.select_set(True)
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        bpy.context.scene.cursor.location = seed.location
+        bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = seed
+        seed.select_set(True)
 
         if bstool.bs_smooth:
             bpy.ops.object.modifier_add(type='SMOOTH')
@@ -448,7 +458,7 @@ class CCS_OT_CCreateSeed(bpy.types.Operator):
 ############################ Panels ############################################## 
         
 class OBJECT_PT_BlendShellPanel(Panel):
-    bl_label = "BlendShell 0.3.0"
+    bl_label = "BlendShell " + str(bl_info["version"][0]) + "." + str(bl_info["version"][1]) + "." + str(bl_info["version"][2])
     bl_idname = "OBJECT_PT_Bs_Panel"
     bl_category = "BlendShell"
     bl_space_type = 'VIEW_3D'
